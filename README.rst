@@ -24,5 +24,5 @@ keywords, `$merge
 Note that the above link actually describes ``merge`` rather than ``$merge``. I
 used the latter in this implementation based on later discussions on the
 `jsonschema mailing list
-<https://groups.google.com/forum/#!forum/jsonschema>`_.
+<https://groups.google.com/forum/#!forum/json-schema>`_.
 
