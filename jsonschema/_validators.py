@@ -356,3 +356,36 @@ def not_draft4(validator, not_schema, instance, schema):
         yield ValidationError(
             "%r is not allowed for %r" % (not_schema, instance)
         )
+
+def merge_draft5(validator, mS, instance, schema):
+
+    def merge_and_descend(schema):
+        if "with" in mS:
+            schema = validator.merge_patch(schema, mS.get('with'))
+        for error in validator.descend(instance, schema):
+            yield error
+
+    source = mS.get('source')
+    if source is not None:
+        if "$ref" in source:
+            with validator.resolver.resolving(source['$ref']) as ref_source:
+                for error in merge_and_descend(ref_source):
+                    yield error
+        else:
+            for error in merge_and_descend(source):
+                yield error
+
+def strictProperties_draft5(validator, sP, instance, schema):
+    if not validator.is_type(instance, "object"):
+        return
+
+    extras = set(_utils.find_additional_properties(instance, schema, strict=True))
+    missing = _utils.property_missing(instance, schema)
+
+    if sP and (extras or (missing is not None)):
+        if extras:
+            error = ("Additional properties are strictly not allowed (%s %s unexpected)" %
+                _utils.extras_msg(extras,))
+        else:
+            error = "Missing strictly required property (%s)" % (missing,)
+        yield ValidationError(error)

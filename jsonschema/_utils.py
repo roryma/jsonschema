@@ -82,7 +82,7 @@ def format_as_index(indices):
     return "[%s]" % "][".join(repr(index) for index in indices)
 
 
-def find_additional_properties(instance, schema):
+def find_additional_properties(instance, schema, strict=False):
     """
     Return the set of additional properties for the given ``instance``.
 
@@ -94,12 +94,30 @@ def find_additional_properties(instance, schema):
     """
 
     properties = schema.get("properties", {})
+    required = schema.get("required", {})
     patterns = "|".join(schema.get("patternProperties", {}))
     for property in instance:
         if property not in properties:
             if patterns and re.search(patterns, property):
                 continue
+            if strict and (property in required):
+                continue
             yield property
+
+
+def property_missing(instance, schema):
+    """
+    Return first property in the schema ``properties`` but not in ``instance``.
+    Returns None if no missing property found.
+
+    Assumes ``schema`` and ```instance`` are dict-like.
+
+    """
+    properties = schema.get("properties", {})
+    for property in properties:
+        if property not in instance:
+            return property
+    return None
 
 
 def extras_msg(extras):

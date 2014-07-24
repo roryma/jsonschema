@@ -81,8 +81,11 @@ def create(meta_schema, validators=(), version=None, default_types=None):  # noq
 
             with self.resolver.in_scope(_schema.get(u"id", u"")):
                 ref = _schema.get(u"$ref")
+                merge = _schema.get(u"$merge")
                 if ref is not None:
                     validators = [(u"$ref", ref)]
+                elif merge is not None:
+                    validators = [(u"$merge", merge)]
                 else:
                     validators = iteritems(_schema)
 
@@ -111,6 +114,22 @@ def create(meta_schema, validators=(), version=None, default_types=None):  # noq
                 if schema_path is not None:
                     error.schema_path.appendleft(schema_path)
                 yield error
+
+        def merge_patch(self, schema, patch):
+            if self.is_type(patch, "object"):
+                if not self.is_type(schema, "object"):
+                    schema = patch
+                patch = patch.copy() # patch and target could be same object
+                for k, v in patch.iteritems():
+                    if self.is_type(v, "null"):
+                        if k in schema:
+                            del schema[k]
+                    else:
+                        schema[k] = self.merge_patch(schema.get(k), v)
+                merged = schema
+            else:
+                merged = patch
+            return merged
 
         def validate(self, *args, **kwargs):
             for error in self.iter_errors(*args, **kwargs):
@@ -215,6 +234,40 @@ Draft4Validator = create(
     version="draft4",
 )
 
+Draft5Validator = create(
+    meta_schema=_utils.load_schema("draft5"),
+    validators={
+        u"$ref" : _validators.ref,
+        u"$merge" : _validators.merge_draft5,
+        u"additionalItems" : _validators.additionalItems,
+        u"additionalProperties" : _validators.additionalProperties,
+        u"allOf" : _validators.allOf_draft4,
+        u"anyOf" : _validators.anyOf_draft4,
+        u"dependencies" : _validators.dependencies,
+        u"enum" : _validators.enum,
+        u"format" : _validators.format,
+        u"items" : _validators.items,
+        u"maxItems" : _validators.maxItems,
+        u"maxLength" : _validators.maxLength,
+        u"maxProperties" : _validators.maxProperties_draft4,
+        u"maximum" : _validators.maximum,
+        u"minItems" : _validators.minItems,
+        u"minLength" : _validators.minLength,
+        u"minProperties" : _validators.minProperties_draft4,
+        u"minimum" : _validators.minimum,
+        u"multipleOf" : _validators.multipleOf,
+        u"not" : _validators.not_draft4,
+        u"oneOf" : _validators.oneOf_draft4,
+        u"pattern" : _validators.pattern,
+        u"patternProperties" : _validators.patternProperties,
+        u"properties" : _validators.properties_draft4,
+        u"required" : _validators.required_draft4,
+        u"strictProperties" : _validators.strictProperties_draft5,
+        u"type" : _validators.type_draft4,
+        u"uniqueItems" : _validators.uniqueItems,
+    },
+    version="draft5",
+)
 
 class RefResolver(object):
     """
@@ -231,7 +284,7 @@ class RefResolver(object):
     """
 
     def __init__(
-        self, base_uri, referrer, store=(), cache_remote=True, handlers=(),
+        self, base_uri, referrer, store=(), cache_remote=True, handlers=()
     ):
         self.base_uri = base_uri
         self.resolution_scope = base_uri
@@ -367,7 +420,7 @@ class RefResolver(object):
             else:
                 result = requests.get(uri).json
         else:
-            # Otherwise, pass off to urllib and assume utf-8
+            # Otherwise pass off to urllib and assume utf-8
             result = json.loads(urlopen(uri).read().decode("utf-8"))
 
         if self.cache_remote:
