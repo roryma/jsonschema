@@ -119,7 +119,8 @@ def create(meta_schema, validators=(), version=None, default_types=None):  # noq
             if self.is_type(patch, "object"):
                 if not self.is_type(schema, "object"):
                     schema = patch
-                patch = patch.copy() # patch and target could be same object
+                patch = patch.copy()  # patch and target could be same object
+                schema = schema.copy()  # Don't alter the schema definition
                 for k, v in patch.iteritems():
                     if self.is_type(v, "null"):
                         if k in schema:
